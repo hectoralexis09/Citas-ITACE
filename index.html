@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Control Escolar</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #eaf3ff;
+        }
+        header {
+            background: #0756a8;
+            color: white;
+            text-align: center;
+            padding: 25px;
+            font-size: 30px;
+            font-weight: bold;
+        }
+        .contenedor {
+            width: 90%;
+            max-width: 1000px;
+            margin: 30px auto;
+        }
+        .formulario {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        h2 {
+            color: #0756a8;
+            text-align: center;
+        }
+        .campo {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #174a7e;
+        }
+        input, textarea {
+            width: 100%;
+            padding: 11px;
+            box-sizing: border-box;
+            border: 1px solid #9bbde0;
+            border-radius: 6px;
+            font-size: 15px;
+        }
+        textarea {
+            height: 80px;
+            resize: none;
+        }
+        button {
+            border: none;
+            padding: 12px 20px;
+            border-radius: 6px;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .guardar {
+            background: #087f23;
+        }
+        .guardar:hover {
+            background: #05651b;
+        }
+        .buscar {
+            background: #0756a8;
+        }
+        .buscar:hover {
+            background: #043d78;
+        }
+        .borrar {
+            background: #d62828;
+        }
+        .borrar:hover {
+            background: #a51f1f;
+        }
+        .limpiar {
+            background: #555;
+        }
+        .busqueda {
+            margin-top: 30px;
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        .cita {
+            background: #f3f8ff;
+            border-left: 6px solid #0756a8;
+            padding: 15px;
+            margin-top: 15px;
+            border-radius: 6px;
+        }
+        .cita strong {
+            color: #0756a8;
+        }
+        .mensaje {
+            text-align: center;
+            font-weight: bold;
+            margin-top: 15px;
+            color: #087f23;
+        }
+        footer {
+            margin-top: 40px;
+            background: #063b73;
+            color: white;
+            text-align: center;
+            padding: 15px;
+        }
+    </style>
+</head>
+<body>
+<header>
+    CONTROL ESCOLAR
+</header>
+<div class="contenedor">
+    <div class="formulario">
+        <h2>Registro de Citas</h2>
+        <div class="campo">
+            <label>Nombre completo:</label>
+            <input type="text" id="nombre" placeholder="Escribe tu nombre">
+        </div>
+        <div class="campo">
+            <label>Número de control:</label>
+            <input type="text" id="control" placeholder="Ejemplo: 12345678">
+        </div>
+        <div class="campo">
+            <label>Grupo:</label>
+            <input type="text" id="grupo" placeholder="Ejemplo: 502-B">
+        </div>
+        <div class="campo">
+            <label>Semestre:</label>
+            <input type="number" id="semestre" min="1" max="6" placeholder="Ejemplo: 5">
+        </div>
+        <div class="campo">
+            <label>Motivo de la cita:</label>
+            <textarea id="motivo" placeholder="Escribe el motivo de la cita"></textarea>
+        </div>
+        <div class="campo">
+            <label>Fecha:</label>
+            <input type="date" id="fecha">
+        </div>
+        <div class="campo">
+            <label>Hora:</label>
+            <input type="time" id="hora">
+        </div>
+        <div style="text-align:center;">
+            <button class="guardar" onclick="guardarCita()">
+                Guardar cita
+            </button>
+            <button class="limpiar" onclick="limpiarFormulario()">
+                Limpiar
+            </button>
+        </div>
+        <div class="mensaje" id="mensaje"></div>
+    </div>
+    <div class="busqueda">
+        <h2>Buscar citas</h2>
+        <input
+            type="text"
+            id="buscar"
+            placeholder="Buscar por nombre, número de control o grupo"
+            onkeyup="mostrarCitas()"
+        >
+        <div id="listaCitas"></div>
+    </div>
+</div>
+<footer>
+    Sistema de Control Escolar
+</footer>
+<script>
+    /* ==========================================
+       BASE DE DATOS
+       ========================================== */
+    let baseDatos;
+    const solicitud = indexedDB.open("ControlEscolarDB", 1);
+    solicitud.onupgradeneeded = function(event) {
+        baseDatos = event.target.result;
+        if (!baseDatos.objectStoreNames.contains("citas")) {
+            baseDatos.createObjectStore("citas", {
+                keyPath: "id",
+                autoIncrement: true
+            });
+        }
+    };
+    solicitud.onsuccess = function(event) {
+        baseDatos = event.target.result;
+        mostrarCitas();
+    };
+    solicitud.onerror = function() {
+        alert("No se pudo abrir la base de datos.");
+    };
+    /* ==========================================
+       GUARDAR CITA
+       ========================================== */
+    function guardarCita() {
+        let nombre = document.getElementById("nombre").value;
+        let control = document.getElementById("control").value;
+        let grupo = document.getElementById("grupo").value;
+        let semestre = document.getElementById("semestre").value;
+        let motivo = document.getElementById("motivo").value;
+        let fecha = document.getElementById("fecha").value;
+        let hora = document.getElementById("hora").value;
+        if (
+            nombre === "" ||
+            control === "" ||
+            grupo === "" ||
+            semestre === "" ||
+            motivo === "" ||
+            fecha === "" ||
+            hora === ""
+        ) {
+            alert("Por favor completa todos los campos.");
+            return;
+        }
+        let cita = {
+            nombre: nombre,
+            control: control,
+            grupo: grupo,
+            semestre: semestre,
+            motivo: motivo,
+            fecha: fecha,
+            hora: hora
+        };
+        let transaccion =
+            baseDatos.transaction(["citas"], "readwrite");
+        let tabla =
+            transaccion.objectStore("citas");
+        tabla.add(cita);
+        transaccion.oncomplete = function() {
+            document.getElementById("mensaje").innerHTML =
+                "✓ Cita guardada correctamente.";
+            limpiarFormulario();
+            mostrarCitas();
+        };
+    }
+    /* ==========================================
+       MOSTRAR Y BUSCAR CITAS
+       ========================================== */
+    function mostrarCitas() {
+        if (!baseDatos) return;
+        let texto =
+            document.getElementById("buscar").value.toLowerCase();
+        let transaccion =
+            baseDatos.transaction(["citas"], "readonly");
+        let tabla =
+            transaccion.objectStore("citas");
+        let solicitud =
+            tabla.getAll();
+        solicitud.onsuccess = function() {
+            let citas = solicitud.result;
+            let contenedor =
+                document.getElementById("listaCitas");
+            contenedor.innerHTML = "";
+            citas.forEach(function(cita) {
+                let informacion =
+                    (
+                        cita.nombre + " " +
+                        cita.control + " " +
+                        cita.grupo
+                    ).toLowerCase();
+                if (informacion.includes(texto)) {
+                    let div =
+                        document.createElement("div");
+                    div.className = "cita";
+                    div.innerHTML = `
+                        <strong>Nombre:</strong>
+                        ${cita.nombre}
+                        <br>
+                        <strong>Número de control:</strong>
+                        ${cita.control}
+                        <br>
+                        <strong>Grupo:</strong>
+                        ${cita.grupo}
+                        <br>
+                        <strong>Semestre:</strong>
+                        ${cita.semestre}
+                        <br>
+                        <strong>Motivo:</strong>
+                        ${cita.motivo}
+                        <br>
+                        <strong>Fecha:</strong>
+                        ${cita.fecha}
+                        <br>
+                        <strong>Hora:</strong>
+                        ${cita.hora}
+                        <br><br>
+                        <button
+                            class="borrar"
+                            onclick="eliminarCita(${cita.id})">
+                            Eliminar cita
+                        </button>
+                    `;
+                    contenedor.appendChild(div);
+                }
+            });
+            if (contenedor.innerHTML === "") {
+                contenedor.innerHTML =
+                    "<p>No hay citas registradas.</p>";
+            }
+        };
+    }
+    /* ==========================================
+       ELIMINAR CITA
+       ========================================== */
+    function eliminarCita(id) {
+        let confirmar =
+            confirm("¿Seguro que deseas eliminar esta cita?");
+        if (!confirmar) return;
+        let transaccion =
+            baseDatos.transaction(["citas"], "readwrite");
+        let tabla =
+            transaccion.objectStore("citas");
+        tabla.delete(id);
+        transaccion.oncomplete = function() {
+            mostrarCitas();
+        };
+    }
+    /* ==========================================
+       LIMPIAR FORMULARIO
+       ========================================== */
+    function limpiarFormulario() {
+        document.getElementById("nombre").value = "";
+        document.getElementById("control").value = "";
+        document.getElementById("grupo").value = "";
+        document.getElementById("semestre").value = "";
+        document.getElementById("motivo").value = "";
+        document.getElementById("fecha").value = "";
+        document.getElementById("hora").value = "";
+    }
+</script>
+</body>
+</html>
